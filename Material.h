@@ -36,10 +36,6 @@ struct CBUFFER0
 	XMVECTOR directionalLightDir; //16 bytes
 	XMVECTOR directionalLightCol; //16 bytes
 
-	//XMVECTOR pointLightPos; //16 bytes
-	//XMVECTOR pointLightCol; //16 bytes
-	//float pointLightStrength; //4 bytes
-
 	PointLight pointLights[MAX_POINT_LIGHTS]; //48 * 8 = 384 bytes
 };
 

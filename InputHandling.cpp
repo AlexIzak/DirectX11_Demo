@@ -116,7 +116,7 @@ void InputHandling::HandleInput(Camera& cam)
 	float sensitivity = XM_2PI * 0.025f;
 	cam.transform.rot.y += (float)(msState.x) * sensitivity * Time::GetDeltaTime();
 	cam.transform.rot.x += (float)(msState.y) * sensitivity * Time::GetDeltaTime();
-	//printf("Yaw:%f, Pitch:%f\n", cam.transform.rot.y, cam.transform.rot.x);
+	//printf("Yaw:%f, Pitch:%f\n", cam.transform.rot.y, cam.transform.rot.x); //Testing
 
 	//if (msTracker.leftButton == Mouse::ButtonStateTracker::PRESSED) //Can also be HELD, RELEASED or UP
 	//{ //Reset camera

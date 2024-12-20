@@ -6,7 +6,7 @@ HRESULT Renderer::InitWindow(HINSTANCE instanceHandle, int nCmdShow)
 {
 	hInst = instanceHandle; //Store our app handle (memory location)
 
-	//First we need to register our wiondow class
+	//First we need to register our window class
 	//This is how windows stores properties for windows that we want to create
 	WNDCLASSEX wc = {}; // " = {}" sets all values to 0. Can also be achieved with "ZeroMemory(&wc, sizeof(WNDCLASSEX))" macro
 	//fill in the struct with the needed information
@@ -23,7 +23,6 @@ HRESULT Renderer::InitWindow(HINSTANCE instanceHandle, int nCmdShow)
 	}
 
 	//Adjust the window dimensions so that the top window bar is not taking pixels away from our app
-	//RECT wr = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
 
 	int centerScreenX = GetSystemMetrics(SM_CXSCREEN) / 2 - SCREEN_WIDTH / 2;
 	int centerScreenY = GetSystemMetrics(SM_CYSCREEN) / 2 - SCREEN_HEIGHT / 2;
@@ -246,21 +245,14 @@ void Renderer::CleanD3D()
 	if (deviceContext) deviceContext->Release();
 
 	if (ZBuffer) ZBuffer->Release();
-	
-
-	/*for (size_t i = 0; i < mRList.size(); i++)
-	{
-		mRList[i]->Clean();
-	}*/
 
 	//Font
 
-	//if (pAlphaBlendStateEnable) pAlphaBlendStateEnable->Release();
+	//if (pAlphaBlendStateEnable) pAlphaBlendStateEnable->Release(); //Sprite Batch does this automatically
 	//if (pAlphaBlendStateDisable) pAlphaBlendStateDisable->Release();
 	if (pRasterizer) pRasterizer->Release();
 
-	//Obj loading
-
+	//TODO - Move skybox into the asset manager
 	delete modelSkybox;
 
 	//Skybox
@@ -301,7 +293,7 @@ void Renderer::OpenConsole()
 	}
 }
 
-void Renderer::RenderFrame(Camera& cam)//, vector<GameObject*> objList) //Transform cube1)
+void Renderer::RenderFrame(Camera& cam)
 {
 	//Clear back buffer with desired colour
 	deviceContext->ClearRenderTargetView(backBuffer, Colors::Red);
@@ -351,49 +343,43 @@ void Renderer::RenderFrame(Camera& cam)//, vector<GameObject*> objList) //Transf
 		view = cam.GetViewMatrix();
 
 		////World matrix and constant buffer values - PER OBJECT!!
-		//CBUFFER0 cbuffer;
-		//for (auto o : objList)
-		//{
-			world = mRend->gameObject->transform.GetWorldMatrix();
-			mRend->material->cbuffer.WVP = world * view * projection;
-			mRend->material->cbuffer.WV = world * view;
 
-			//Lighting
-			//Ambient light
-			mRend->material->cbuffer.ambientLightCol = ambientLightColour;
-			//Directional light
-			mRend->material->cbuffer.directionalLightCol = directionalLightColour;
-			XMMATRIX transpose = XMMatrixTranspose(world); //Transpose rotations
-			mRend->material->cbuffer.directionalLightDir = XMVector3Transform(directionalLightShinesFrom, transpose);
+		world = mRend->gameObject->transform.GetWorldMatrix();
+		mRend->material->cbuffer.WVP = world * view * projection;
+		mRend->material->cbuffer.WV = world * view;
 
-			//Point Light
-			/*cbuffer.pointLights[0].position = pointLightPosition;
-			cbuffer.pointLights[0].colour = pointLightColour;
-			cbuffer.pointLights[0].strength = pointLightStrength;*/
+		//Lighting
+		//Ambient light
+		mRend->material->cbuffer.ambientLightCol = ambientLightColour;
+		//Directional light
+		mRend->material->cbuffer.directionalLightCol = directionalLightColour;
+		XMMATRIX transpose = XMMatrixTranspose(world); //Transpose rotations
+		mRend->material->cbuffer.directionalLightDir = XMVector3Transform(directionalLightShinesFrom, transpose);
 
-			for (size_t i = 0; i < MAX_POINT_LIGHTS; ++i)
-			{
-				mRend->material->cbuffer.pointLights[i].enabled = pointLights[i].enabled;
+		//Point Light
 
-				if (!pointLights[i].enabled)
-					continue; //Skip disabled lights
+		for (size_t i = 0; i < MAX_POINT_LIGHTS; ++i)
+		{
+			mRend->material->cbuffer.pointLights[i].enabled = pointLights[i].enabled;
 
-				XMMATRIX inverse = XMMatrixInverse(nullptr, world);
+			if (!pointLights[i].enabled)
+				continue; //Skip disabled lights
 
-				mRend->material->cbuffer.pointLights[i].position = XMVector3Transform(pointLights[i].position, inverse);
-				mRend->material->cbuffer.pointLights[i].colour = pointLights[i].colour;
-				mRend->material->cbuffer.pointLights[i].strength = pointLights[i].strength;
-			}
+			XMMATRIX inverse = XMMatrixInverse(nullptr, world);
 
-			//Update constant buffer
-			deviceContext->UpdateSubresource(mRend->material->pCBuffer, 0, 0, &mRend->material->cbuffer, 0, 0);
-			deviceContext->VSSetConstantBuffers(0, 1, &mRend->material->pCBuffer);
+			mRend->material->cbuffer.pointLights[i].position = XMVector3Transform(pointLights[i].position, inverse);
+			mRend->material->cbuffer.pointLights[i].colour = pointLights[i].colour;
+			mRend->material->cbuffer.pointLights[i].strength = pointLights[i].strength;
+		}
 
-			//Draw the 3D object - 36 (vertices)
-			//g_devCon->DrawIndexed(36, 0, 0);
-			//model->Draw();
-			mRend->Draw();
-		//}
+		//Update constant buffer
+		deviceContext->UpdateSubresource(mRend->material->pCBuffer, 0, 0, &mRend->material->cbuffer, 0, 0);
+		deviceContext->VSSetConstantBuffers(0, 1, &mRend->material->pCBuffer);
+
+		//Draw the 3D object - 36 (vertices)
+		//g_devCon->DrawIndexed(36, 0, 0);
+
+		mRend->Draw();
 	}
 
 	//Delta Time
@@ -403,10 +389,11 @@ void Renderer::RenderFrame(Camera& cam)//, vector<GameObject*> objList) //Transf
 	spriteBatch->Begin();
 	//Timer
 	//TODO - Create a wrapper class that takes a float and int to trim decimal places off the float
-	wstring temp = L"Time : ";
-	temp.append(to_wstring(((int)(fakeTime * 100)) / 100.f).substr(0, 4));
-	//wstring temp = to_wstring(Time::GetDeltaTime()).substr(0, 8);
-	spriteFonts[0]->DrawString(spriteBatch.get(), temp.c_str(), XMFLOAT2(0, 0), Colors::White, 0.0f, XMFLOAT2(0, 0), XMFLOAT2(1.0, 1.0));
+	wstring timer = L"Time : ";
+	timer.append(to_wstring(((int)(fakeTime * 100)) / 100.f).substr(0, 4));
+	//TODO - Extract this into a function to avoid repetition
+	spriteFonts[0]->DrawString(spriteBatch.get(), timer.c_str(), XMFLOAT2(0, 0), Colors::White, 0.0f, XMFLOAT2(0, 0), XMFLOAT2(1.0, 1.0));
+
 	wstring fps = L"FPS : ";
 	fps.append(to_wstring(1 / Time::GetDeltaTime()).substr(0, 3));
 	spriteFonts[1]->DrawString(spriteBatch.get(), fps.c_str(), XMFLOAT2(0, 20), Colors::Red, 0.0f, XMFLOAT2(0, 0), XMFLOAT2(1.0, 1.0));
@@ -418,44 +405,32 @@ void Renderer::RenderFrame(Camera& cam)//, vector<GameObject*> objList) //Transf
 
 HRESULT Renderer::InitPipeline(vector<GameObject*> objList)
 {
-	//Object shaders
-	//for (auto o : objList)
-	//{
-		//if (!o->isReflective)
-		//{
-			//Load normal shaders if not reflective object
-			//LoadVertexShader(L"Compiled Shaders/VertexShader.cso", "main", &o->meshRenderer->material->pVS, &o->meshRenderer->material->pLayout);
-			//LoadPixelShader(L"Compiled Shaders/PixelShader.cso", "main", &o->meshRenderer->material->pPS);
-			Material* material = AssetManager::GetMaterial("Wood_mat");
-			LoadVertexShader(L"Compiled Shaders/VertexShader.cso", "main", &material->pVS, &material->pLayout, material);
-			LoadPixelShader(L"Compiled Shaders/PixelShader.cso", "main", &material->pPS);
+	//Material shaders
 
-			//o->meshRenderer->material->isReflective = false;
-		//}
-		//else if(o->isReflective)
-		//{
-			//Load reflective shaders if reflective object
-			//LoadVertexShader(L"Compiled Shaders/ReflectiveVShader.cso", "main", &o->meshRenderer->material->pVS, &o->meshRenderer->material->pLayout);
-			//LoadPixelShader(L"Compiled Shaders/ReflectivePShader.cso", "main", &o->meshRenderer->material->pPS);
-			material = nullptr;
-			material = AssetManager::GetMaterial("Metal_mat");
-			LoadVertexShader(L"Compiled Shaders/ReflectiveVShader.cso", "main", &material->pVS, &material->pLayout, material);
-			LoadPixelShader(L"Compiled Shaders/ReflectivePShader.cso", "main", &material->pPS);
+	//Load normal shaders if not reflective material
 
-			//o->meshRenderer->material->isReflective = true;
-		//}
+	Material* material = AssetManager::GetMaterial("Wood_mat");
+	LoadVertexShader(L"Compiled Shaders/VertexShader.cso", "main", &material->pVS, &material->pLayout, material);
+	LoadPixelShader(L"Compiled Shaders/PixelShader.cso", "main", &material->pPS);
 
-		//Skybox shaders
-		LoadVertexShader(L"Compiled Shaders/SkyboxVShader.cso", "main", &pVSSkybox, &pLayoutSkybox, material);
-		LoadPixelShader(L"Compiled Shaders/SkyboxPShader.cso", "main", &pPSSkybox);
-	//}
-		
+	//Load reflective shaders if reflective material
+
+	material = nullptr;
+	material = AssetManager::GetMaterial("Metal_mat");
+	LoadVertexShader(L"Compiled Shaders/ReflectiveVShader.cso", "main", &material->pVS, &material->pLayout, material);
+	LoadPixelShader(L"Compiled Shaders/ReflectivePShader.cso", "main", &material->pPS);
+
+
+	//Skybox shaders
+	LoadVertexShader(L"Compiled Shaders/SkyboxVShader.cso", "main", &pVSSkybox, &pLayoutSkybox, material);
+	LoadPixelShader(L"Compiled Shaders/SkyboxPShader.cso", "main", &pPSSkybox);
+
 	return S_OK;
 }
 
 void Renderer::InitGraphics(vector<GameObject*> objList)
 {
-	//Using objfilemodel so this not needed -------------------------------------------------------------------------------------
+	//Using objfilemodel so this not needed for now -------------------------------------------------------------------------------
 	//Create the vertex buffer
 	//D3D11_BUFFER_DESC bd = { 0 };
 	//bd.Usage = D3D11_USAGE_DYNAMIC; //Dynamic allows CPU-write and GPU-read
@@ -482,13 +457,6 @@ void Renderer::InitGraphics(vector<GameObject*> objList)
 	//Create constant buffer
 	D3D11_BUFFER_DESC cbd = { 0 };
 	cbd.Usage = D3D11_USAGE_DEFAULT;
-	/*cbd.ByteWidth = sizeof(CBUFFER0);
-	if (FAILED(device->CreateBuffer(&cbd, NULL, &pCBuffer)))
-	{
-		OutputDebugString(L"Failed to create constant buffer");
-		return;
-	}*/
-
 	cbd.ByteWidth = sizeof(CBufferSkybox);
 	cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	if (FAILED(device->CreateBuffer(&cbd, NULL, &pSkyboxCBuffer)))
@@ -521,7 +489,7 @@ void Renderer::InitGraphics(vector<GameObject*> objList)
 	//Asset Initialisation
 	AssetManager::InitialiseLibraries(device, deviceContext);
 
-	//TODO - Add reflective/non-reflective bool
+	//Making a material with required texture
 	CreateMaterial(AssetManager::GetTexture("Wood"), "Wood_mat");
 	CreateMaterial(AssetManager::GetTexture("Metal"), "Metal_mat");
 
@@ -529,18 +497,14 @@ void Renderer::InitGraphics(vector<GameObject*> objList)
 	for (auto o : objList)
 	{
 		ObjFileModel* obj = AssetManager::GetMesh(o->shape);
-		//ID3D11ShaderResourceView* texture = AssetManager::GetTexture(o->texture);
-		//o->meshRenderer = new MeshRenderer(AssetManager::GetMesh("Cube"), AssetManager::GetTexture(L"Box"), device, deviceContext, o);
-		//o->meshRenderer = new MeshRenderer(obj, texture, device, o);
 		o->meshRenderer = new MeshRenderer(obj, AssetManager::GetMaterial(o->texture), o);
 		mRend = o->meshRenderer;
 		mRList.push_back(mRend);
-		
 	}
 
 	//Font
 	spriteBatch = make_unique<SpriteBatch>(deviceContext);
-	//spriteFont = make_unique<SpriteFont>(device, L"packages/comic_sans_ms_16.spritefont");
+	
 	SpriteFont* timerFont = AssetManager::GetFont("Arial");
 	SpriteFont* fpsFont = AssetManager::GetFont("Calibri");
 
@@ -548,7 +512,7 @@ void Renderer::InitGraphics(vector<GameObject*> objList)
 	spriteFonts.push_back(fpsFont);
 
 	//Rasterizer state for disabling backface culling
-	//TODO Transparent object - Tutorial 06b
+	//TODO Transparent object
 	D3D11_RASTERIZER_DESC rsDesc;
 	ZeroMemory(&rsDesc, sizeof(D3D11_RASTERIZER_DESC));
 	rsDesc.CullMode = D3D11_CULL_NONE;
@@ -559,14 +523,11 @@ void Renderer::InitGraphics(vector<GameObject*> objList)
 
 	//Models
 
-	modelSkybox = new ObjFileModel{ (char*)"cube.obj", device, deviceContext };
-
-	//GameObjects
-	//obj = new GameObject()
+	modelSkybox = new ObjFileModel{ (char*)"Assets/Objects/cube.obj", device, deviceContext };
 
 	//Skybox
-	//CreateDDSTextureFromFile(device, deviceContext, L"TestCubeMap.dds", NULL, &pSkyboxTexture);
-	CreateDDSTextureFromFile(device, deviceContext, L"WindowsXP.dds", NULL, &pSkyboxTexture);
+	//CreateDDSTextureFromFile(device, deviceContext, L"TestCubeMap.dds", NULL, &pSkyboxTexture); //Easier to test reflection
+	CreateDDSTextureFromFile(device, deviceContext, L"Assets/Textures/WindowsXP.dds", NULL, &pSkyboxTexture);
 }
 
 void Renderer::CreateMaterial(ID3D11ShaderResourceView* texture, string name)
@@ -581,8 +542,8 @@ void Renderer::CreateMaterial(ID3D11ShaderResourceView* texture, string name)
 	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
 	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	//device->CreateSamplerState(&samplerDesc, &mRend->material->pSampler);
-	//TODO - Sampler in texture class - make it
+
+	//TODO - Sampler in texture class - make the new class
 	device->CreateSamplerState(&samplerDesc, &material->pSampler);
 
 	AssetManager::LoadMaterial(name, material);
@@ -594,7 +555,6 @@ HRESULT Renderer::LoadVertexShader(LPCWSTR filename, LPCSTR entrypoint, ID3D11Ve
 	HRESULT result;
 
 	auto vertexShaderBytecode = DX::ReadData(filename);
-	//auto vertexShaderBytecode = DX::ReadData(L"Compiled Shaders/VertexShader.cso");
 
 	//Encapsulate both shaders into shader objects
 	result = device->CreateVertexShader(vertexShaderBytecode.data(), vertexShaderBytecode.size(), NULL, vs);
@@ -605,21 +565,17 @@ HRESULT Renderer::LoadVertexShader(LPCWSTR filename, LPCSTR entrypoint, ID3D11Ve
 	}
 
 	//Set the shader objects
-	//TODO - Set to individual draw calls later (Tutorial 03a)
 	deviceContext->VSSetShader(*vs, 0, 0);
 
-	//Material* material = AssetManager::GetMaterial("Wood_mat");
-	//D3DReflect(vertexShaderBytecode.data(), vertexShaderBytecode.size(), IID_ID3D11ShaderReflection, (void**)&mRend->material->vShaderReflection);
 	D3DReflect(vertexShaderBytecode.data(), vertexShaderBytecode.size(), IID_ID3D11ShaderReflection, (void**)&material->vShaderReflection);
 	
 	D3D11_SHADER_DESC desc;
-	//mRend->material->vShaderReflection->GetDesc(&desc);
+	
 	material->vShaderReflection->GetDesc(&desc);
 
 	D3D11_SIGNATURE_PARAMETER_DESC* signatureParamDescriptions = new _D3D11_SIGNATURE_PARAMETER_DESC[desc.InputParameters]{ 0 };
 	for (UINT i = 0; i < desc.InputParameters; i++)
 	{
-		//mRend->material->vShaderReflection->GetInputParameterDesc(i, &signatureParamDescriptions[i]);
 		material->vShaderReflection->GetInputParameterDesc(i, &signatureParamDescriptions[i]);
 	}
 
@@ -632,13 +588,13 @@ HRESULT Renderer::LoadVertexShader(LPCWSTR filename, LPCSTR entrypoint, ID3D11Ve
 		ied[i].SemanticIndex = signatureParamDescriptions[i].SemanticIndex;
 		if (signatureParamDescriptions[i].ComponentType == D3D_REGISTER_COMPONENT_FLOAT32)
 		{
-			switch (signatureParamDescriptions[i].Mask) //Nested while loops moment
+			switch (signatureParamDescriptions[i].Mask) //Not the most efficient solution
 			{
 			case 1:		ied[i].Format = DXGI_FORMAT_R32_FLOAT;				break; //float1
 			case 3:		ied[i].Format = DXGI_FORMAT_R32G32_FLOAT;			break; //float2
 			case 7:		ied[i].Format = DXGI_FORMAT_R32G32B32_FLOAT;		break; //float3
 			case 15:	ied[i].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;		break; //float4
-			default: break; //Ruh Roh
+			default: break; //I'm sorry
 			}
 		}//The above only covers ---x, --yx, -zyx, wzyx. It may be possible for a mask to be -yx- or yx-- or zyx- (6, 12, 14).
 		ied[i].InputSlot = 0;
@@ -667,7 +623,6 @@ HRESULT Renderer::LoadPixelShader(LPCWSTR filename, LPCSTR entrypoint, ID3D11Pix
 	// Load and compile the vertex and pixel shaders
 	HRESULT result;
 
-	//auto pixelShaderBytecode = DX::ReadData(L"Compiled Shaders/PixelShader.cso");
 	auto pixelShaderBytecode = DX::ReadData(filename);
 
 	//Encapsulate both shadersinto shader objects
@@ -679,7 +634,7 @@ HRESULT Renderer::LoadPixelShader(LPCWSTR filename, LPCSTR entrypoint, ID3D11Pix
 	}
 
 	//Set the shader objects
-	//TODO - Set to individual draw calls later (Tutorial 03a)
+
 	deviceContext->PSSetShader(*ps, 0, 0);
 
 	return S_OK;;
@@ -699,7 +654,7 @@ void Renderer::DrawSkybox(Camera g_cam)
 	//Constant buffer data
 	CBufferSkybox cbuf;
 	XMMATRIX translation, projection, view;
-	//translation = XMMatrixTranslation(g_cam.x, g_cam.y, g_cam.z);
+
 	translation = XMMatrixTranslation(g_cam.transform.pos.x, g_cam.transform.pos.y, g_cam.transform.pos.z);
 	projection = XMMatrixPerspectiveFovLH(XMConvertToRadians(60), SCREEN_WIDTH / (float)SCREEN_HEIGHT, 0.1f, 100);
 	view = g_cam.GetViewMatrix();
@@ -708,27 +663,19 @@ void Renderer::DrawSkybox(Camera g_cam)
 
 	//Set shader resources
 	deviceContext->VSSetConstantBuffers(0, 1, &pSkyboxCBuffer);
-	//deviceContext->PSSetSamplers(0, 1, &mRend->material->pSampler);
+	
 	Material* material = AssetManager::GetMaterial("Wood_mat");
 	deviceContext->PSSetSamplers(0, 1, &material->pSampler);
 	deviceContext->PSSetShaderResources(0, 1, &pSkyboxTexture);
 
-	//deviceContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	//deviceContext->OMSetBlendState(pAlphaBlendStateDisable, 0, 0xffffffff);
-
 	modelSkybox->Draw();
-
-	//deviceContext->OMSetBlendState(pAlphaBlendStateDisable, 0, 0xffffffff);
 
 	//Back-face culling and enable depth write
 	deviceContext->OMSetDepthStencilState(pDepthWriteSolid, 1);
 	deviceContext->RSSetState(pRasterSolid);
 
 	//Set standard shaders
-	//deviceContext->VSSetShader(mRend->material->pVS, 0, 0);
-	//deviceContext->PSSetShader(mRend->material->pPS, 0, 0);
-	//deviceContext->IASetInputLayout(mRend->material->pLayout);
+	
 	deviceContext->VSSetShader(material->pVS, 0, 0);
 	deviceContext->PSSetShader(material->pPS, 0, 0);
 	deviceContext->IASetInputLayout(material->pLayout);

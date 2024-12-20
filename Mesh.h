@@ -2,6 +2,15 @@
 
 #include "objfilemodel.h"
 
+//Not needed due to objfilemodel -----------
+//struct Vertex //Quad drawing
+//{
+//	XMFLOAT3 Pos;
+//	XMFLOAT4 Color;
+//	XMFLOAT2 UV;
+//	XMFLOAT3 Norm;
+//}; ---------------------------------------
+
 class Mesh
 {
 public:
@@ -13,7 +22,6 @@ public:
 
 	//One model(mesh) per object
 	ObjFileModel* model;
-	//ObjFileModel* modelSkybox;
 
 	Mesh(ObjFileModel* obj);
 	void Clean();

@@ -12,13 +12,6 @@ Material::Material(ID3D11ShaderResourceView* texture, ID3D11Device* device)
 		return;
 	}
 
-	/*cbd.ByteWidth = sizeof(CBufferSkybox);
-	if (FAILED(device->CreateBuffer(&cbd, NULL, &pSkyboxCBuffer)))
-	{
-		OutputDebugString(L"Failed to create skybox constant buffer");
-		return;
-	}*/
-
 	pTexture = texture;
 }
 
@@ -27,7 +20,7 @@ void Material::Clean()
 	if (pVS) pVS->Release();
 	if (pPS) pPS->Release();
 	if (pLayout) pLayout->Release();
-	//if (pTexture) pTexture->Release();
+
 	//TODO - Put this in texture class
 	if (pSampler) pSampler->Release();
 	if (pCBuffer) pCBuffer->Release();

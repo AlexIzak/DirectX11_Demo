@@ -8,22 +8,22 @@ map<string, Material*> AssetManager::matLib;
 void AssetManager::InitialiseLibraries(ID3D11Device* device, ID3D11DeviceContext* deviceContext)
 {
 	//Textures
-	LoadWICTexture(L"Box.bmp", "Wood", device, deviceContext);
-	LoadWICTexture(L"treadplate.png", "Metal", device, deviceContext);
+	LoadWICTexture(L"Assets/Textures/Box.bmp", "Wood", device, deviceContext);
+	LoadWICTexture(L"Assets/Textures/treadplate.png", "Metal", device, deviceContext);
 
 	//Objects
-	LoadMesh("cube.obj", "Cube", device, deviceContext);
-	LoadMesh("Sphere.obj", "Sphere", device, deviceContext);
+	LoadMesh("Assets/Objects/cube.obj", "Cube", device, deviceContext);
+	LoadMesh("Assets/Objects/Sphere.obj", "Sphere", device, deviceContext);
 
 	//Fonts
-	LoadFont(L"comic_sans_ms_16.spritefont", "ComicSans", device);
-	LoadFont(L"arial_16.spritefont", "Arial", device);
-	LoadFont(L"calibri_16.spritefont", "Calibri", device);
+	LoadFont(L"Assets/Fonts/comic_sans_ms_16.spritefont", "ComicSans", device);
+	LoadFont(L"Assets/Fonts/arial_16.spritefont", "Arial", device);
+	LoadFont(L"Assets/Fonts/calibri_16.spritefont", "Calibri", device);
 }
 
 ID3D11ShaderResourceView* AssetManager::GetTexture(string filename)
 {
-	//HRESULT hr = textureLib[filename];
+	//Trying to add error checking/data validation in case of wrong filename
 	try
 	{
 		return textureLib[filename];
